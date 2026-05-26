@@ -16,6 +16,7 @@ namespace BackgroundRemovalMVP.Models
     {
         public int Id { get; set; }
         public int UserId { get; set; }
+        public User? User { get; set; } // Navigation property
         public string OriginalFileName { get; set; } = string.Empty;
         public string OriginalUrl { get; set; } = string.Empty;
         public string ProcessedUrl { get; set; } = string.Empty;
