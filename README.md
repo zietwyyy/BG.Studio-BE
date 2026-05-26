@@ -1,0 +1,1 @@
+Added Cloudinary support
