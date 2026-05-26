@@ -1,1 +1,1 @@
-Added Cloudinary support
+Added Payment models
