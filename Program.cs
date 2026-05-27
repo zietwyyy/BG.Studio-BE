@@ -138,13 +138,11 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Bật Swagger ở mọi môi trường (cả Production) để dễ test API
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+// Không dùng HTTPS Redirect vì Render tự handle SSL ở reverse proxy
 
 app.UseCors("AllowAll");
 
