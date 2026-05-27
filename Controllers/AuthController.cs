@@ -38,13 +38,21 @@ namespace BackgroundRemovalMVP.Controllers
             if (request.Password.Length < 6)
                 return BadRequest("Mật khẩu phải có ít nhất 6 ký tự.");
 
+            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains("@"))
+                return BadRequest("Email không hợp lệ.");
+
             var exists = await _context.Users.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower());
             if (exists)
                 return BadRequest("Tên đăng nhập đã tồn tại.");
 
+            var emailExists = await _context.Users.AnyAsync(u => !string.IsNullOrEmpty(u.Email) && u.Email.ToLower() == request.Email.ToLower());
+            if (emailExists)
+                return BadRequest("Email đã được sử dụng.");
+
             var user = new User
             {
                 Username = request.Username,
+                Email = request.Email,
                 PasswordHash = HashPassword(request.Password)
             };
 
