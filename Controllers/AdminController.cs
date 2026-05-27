@@ -30,6 +30,10 @@ namespace BackgroundRemovalMVP.Controllers
             // Tính tiết kiệm: mỗi ảnh Cloud API tốn khoảng $0.05, Local AI = miễn phí
             var savings = localImages * 0.05;
 
+            // Tính tổng doanh thu từ các đơn hàng đã thanh toán
+            var paidOrders = await _context.PaymentOrders.Where(o => o.Status == "PAID").ToListAsync();
+            var totalRevenue = paidOrders.Sum(o => (double)o.Amount);
+
             // Hoạt động gần đây (20 ảnh mới nhất)
             var recentActivities = images
                 .OrderByDescending(i => i.CreatedAt)
@@ -60,7 +64,10 @@ namespace BackgroundRemovalMVP.Controllers
             var registeredUsers = users.Select(u => new AdminUserDto
             {
                 Id = u.Id,
-                Username = u.Username
+                Username = u.Username,
+                Email = u.Email,
+                IsPro = u.IsPro && u.SubscriptionExpiresAt > DateTime.UtcNow,
+                SubscriptionExpiresAt = u.SubscriptionExpiresAt
             }).ToList();
 
             var response = new AdminStatsResponse
@@ -70,12 +77,38 @@ namespace BackgroundRemovalMVP.Controllers
                 LocalImages = localImages,
                 CloudImages = cloudImages,
                 TotalSavings = savings,
+                TotalRevenue = totalRevenue,
                 RecentActivities = recentActivities,
                 DailyStats = dailyStats,
                 RegisteredUsers = registeredUsers
             };
 
             return Ok(response);
+        }
+
+        [HttpGet("user/{id}/history")]
+        public async Task<IActionResult> GetUserHistory(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return NotFound("Người dùng không tồn tại.");
+
+            var history = await _context.ProcessedImages
+                .Where(img => img.UserId == id)
+                .OrderByDescending(img => img.CreatedAt)
+                .Select(i => new ActivityDto
+                {
+                    Id = i.Id,
+                    Username = user.Username,
+                    OriginalFileName = i.OriginalFileName,
+                    OriginalUrl = i.OriginalUrl,
+                    ProcessedUrl = i.ProcessedUrl,
+                    Source = i.Source,
+                    CreatedAt = i.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(history);
         }
     }
 }

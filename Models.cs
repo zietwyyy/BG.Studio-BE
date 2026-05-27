@@ -8,6 +8,9 @@ namespace BackgroundRemovalMVP.Models
         public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string ResetPasswordToken { get; set; } = string.Empty;
+        public DateTime? ResetTokenExpires { get; set; }
         public bool IsPro { get; set; } = false;
         public DateTime? SubscriptionExpiresAt { get; set; }
     }
@@ -62,6 +65,7 @@ namespace BackgroundRemovalMVP.Models
         public int LocalImages { get; set; }
         public int CloudImages { get; set; }
         public double TotalSavings { get; set; } // Tính bằng USD hoặc VNĐ giả lập
+        public double TotalRevenue { get; set; } // Doanh thu từ các đơn hàng PAID
         public List<ActivityDto> RecentActivities { get; set; } = new();
         public List<DailyStatDto> DailyStats { get; set; } = new();
         public List<AdminUserDto> RegisteredUsers { get; set; } = new();
@@ -71,6 +75,9 @@ namespace BackgroundRemovalMVP.Models
     {
         public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public bool IsPro { get; set; }
+        public DateTime? SubscriptionExpiresAt { get; set; }
     }
 
     public class ActivityDto
@@ -88,5 +95,29 @@ namespace BackgroundRemovalMVP.Models
     {
         public string Date { get; set; } = string.Empty;
         public int Count { get; set; }
+    }
+
+    public class UpdateProfileRequest
+    {
+        public string OldPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class ForgotPasswordRequest
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordRequest
+    {
+        public string Token { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class GoogleLoginRequest
+    {
+        public string IdToken { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
     }
 }

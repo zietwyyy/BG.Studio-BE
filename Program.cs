@@ -4,9 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using BackgroundRemovalMVP.Data;
+using BackgroundRemovalMVP.Services;
 using CloudinaryDotNet;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Thêm dịch vụ Email
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Add services to the container.
 builder.Services.AddControllers();

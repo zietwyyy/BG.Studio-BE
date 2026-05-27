@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using BackgroundRemovalMVP.Data;
 using BackgroundRemovalMVP.Models;
+using BackgroundRemovalMVP.Services;
 
 namespace BackgroundRemovalMVP.Controllers
 {
@@ -16,11 +17,13 @@ namespace BackgroundRemovalMVP.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(AppDbContext context, IConfiguration configuration, IEmailService emailService)
         {
             _context = context;
             _configuration = configuration;
+            _emailService = emailService;
         }
 
         [HttpPost("register")]
@@ -60,6 +63,107 @@ namespace BackgroundRemovalMVP.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == request.Username.ToLower());
             if (user == null || user.PasswordHash != HashPassword(request.Password))
                 return Unauthorized("Tên đăng nhập hoặc mật khẩu không chính xác.");
+
+            var token = GenerateJwtToken(user);
+
+            return Ok(new AuthResponse
+            {
+                Token = token,
+                Username = user.Username,
+                IsPro = user.IsPro && user.SubscriptionExpiresAt > DateTime.UtcNow,
+                SubscriptionExpiresAt = user.SubscriptionExpiresAt
+            });
+        }
+
+        [HttpPut("profile")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized("Token không hợp lệ.");
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return NotFound("Người dùng không tồn tại.");
+
+            if (user.PasswordHash != HashPassword(request.OldPassword))
+                return BadRequest("Mật khẩu cũ không chính xác.");
+
+            if (request.NewPassword.Length < 6)
+                return BadRequest("Mật khẩu mới phải có ít nhất 6 ký tự.");
+
+            user.PasswordHash = HashPassword(request.NewPassword);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Cập nhật mật khẩu thành công." });
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower());
+            if (user == null) 
+                return BadRequest("Không tìm thấy tài khoản với Email này.");
+
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.ResetPasswordToken = otp;
+            user.ResetTokenExpires = DateTime.UtcNow.AddMinutes(15);
+            await _context.SaveChangesAsync();
+
+            var subject = "Khôi phục mật khẩu - BG.Studio";
+            var body = $"<h3>Mã xác nhận khôi phục mật khẩu của bạn là: <strong>{otp}</strong></h3><p>Mã này sẽ hết hạn sau 15 phút.</p>";
+
+            await _emailService.SendEmailAsync(user.Email, subject, body);
+
+            return Ok(new { message = "Mã khôi phục đã được gửi đến email của bạn." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.ResetPasswordToken == request.Token && u.ResetTokenExpires > DateTime.UtcNow);
+            if (user == null)
+                return BadRequest("Mã xác nhận không hợp lệ hoặc đã hết hạn.");
+
+            if (request.NewPassword.Length < 6)
+                return BadRequest("Mật khẩu mới phải có ít nhất 6 ký tự.");
+
+            user.PasswordHash = HashPassword(request.NewPassword);
+            user.ResetPasswordToken = string.Empty;
+            user.ResetTokenExpires = null;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập ngay bây giờ." });
+        }
+
+        [HttpPost("google")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+        {
+            if (string.IsNullOrEmpty(request.Email))
+                return BadRequest("Email không hợp lệ từ Google.");
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower());
+            
+            if (user == null)
+            {
+                string username = request.Email.Split('@')[0];
+                int suffix = 1;
+                string originalUsername = username;
+                while (await _context.Users.AnyAsync(u => u.Username.ToLower() == username.ToLower()))
+                {
+                    username = $"{originalUsername}{suffix}";
+                    suffix++;
+                }
+
+                user = new User
+                {
+                    Username = username,
+                    Email = request.Email,
+                    PasswordHash = HashPassword(Guid.NewGuid().ToString()),
+                };
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+            }
 
             var token = GenerateJwtToken(user);
 
