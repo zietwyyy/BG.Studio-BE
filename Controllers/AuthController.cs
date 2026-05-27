@@ -33,16 +33,9 @@ namespace BackgroundRemovalMVP.Controllers
             if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains("@"))
                 return BadRequest("Email không hợp lệ.");
 
-            if (string.IsNullOrWhiteSpace(request.Username))
-                return BadRequest("Tên đăng nhập không được trống.");
-
-            var exists = await _context.Users.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower());
-            if (exists)
-                return BadRequest("Tên đăng nhập đã tồn tại.");
-
             var emailExists = await _context.Users.AnyAsync(u => !string.IsNullOrEmpty(u.Email) && u.Email.ToLower() == request.Email.ToLower());
             if (emailExists)
-                return BadRequest("Email đã được sử dụng.");
+                return BadRequest("Email này đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.");
 
             var code = new Random().Next(100000, 999999).ToString();
             _registerVerificationCodes[request.Email.ToLower()] = (code, DateTime.UtcNow.AddMinutes(5));
