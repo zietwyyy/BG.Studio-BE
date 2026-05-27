@@ -159,10 +159,16 @@ app.Run();
 // Hàm chuyển đổi DATABASE_URL từ dạng postgres:// sang Connection String của C#
 static string ParsePostgresUrl(string url)
 {
-    if (string.IsNullOrEmpty(url) || !url.StartsWith("postgres://"))
+    if (string.IsNullOrEmpty(url) || (!url.StartsWith("postgres://") && !url.StartsWith("postgresql://")))
         return url;
 
-    var uri = new Uri(url);
+    var cleanUrl = url;
+    if (url.StartsWith("postgresql://"))
+    {
+        cleanUrl = "postgres://" + url.Substring("postgresql://".Length);
+    }
+
+    var uri = new Uri(cleanUrl);
     var userInfo = uri.UserInfo.Split(':');
     var username = userInfo[0];
     var password = userInfo.Length > 1 ? userInfo[1] : "";
