@@ -18,12 +18,41 @@ namespace BackgroundRemovalMVP.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string Code, DateTime Expires)> _registerVerificationCodes = new();
 
         public AuthController(AppDbContext context, IConfiguration configuration, IEmailService emailService)
         {
             _context = context;
             _configuration = configuration;
             _emailService = emailService;
+        }
+
+        [HttpPost("send-register-code")]
+        public async Task<IActionResult> SendRegisterCode([FromBody] UserRegisterRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains("@"))
+                return BadRequest("Email không hợp lệ.");
+
+            if (string.IsNullOrWhiteSpace(request.Username))
+                return BadRequest("Tên đăng nhập không được trống.");
+
+            var exists = await _context.Users.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower());
+            if (exists)
+                return BadRequest("Tên đăng nhập đã tồn tại.");
+
+            var emailExists = await _context.Users.AnyAsync(u => !string.IsNullOrEmpty(u.Email) && u.Email.ToLower() == request.Email.ToLower());
+            if (emailExists)
+                return BadRequest("Email đã được sử dụng.");
+
+            var code = new Random().Next(100000, 999999).ToString();
+            _registerVerificationCodes[request.Email.ToLower()] = (code, DateTime.UtcNow.AddMinutes(5));
+
+            var subject = "Mã xác minh đăng ký tài khoản - BG.Studio";
+            var body = $"<h3>Mã xác minh đăng ký của bạn là: <strong>{code}</strong></h3><p>Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho người khác.</p>";
+
+            await _emailService.SendEmailAsync(request.Email, subject, body);
+
+            return Ok(new { message = "Mã xác minh đã được gửi đến email của bạn." });
         }
 
         [HttpPost("register")]
@@ -40,6 +69,16 @@ namespace BackgroundRemovalMVP.Controllers
 
             if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains("@"))
                 return BadRequest("Email không hợp lệ.");
+
+            var emailLower = request.Email.ToLower();
+            if (!_registerVerificationCodes.TryGetValue(emailLower, out var verification) || 
+                verification.Code != request.VerificationCode || 
+                verification.Expires < DateTime.UtcNow)
+            {
+                return BadRequest("Mã xác minh không chính xác hoặc đã hết hạn.");
+            }
+
+            _registerVerificationCodes.TryRemove(emailLower, out _);
 
             var exists = await _context.Users.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower());
             if (exists)
