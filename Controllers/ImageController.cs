@@ -159,7 +159,8 @@ namespace BackgroundRemovalMVP.Controllers
                     }
                     else // Lưu cục bộ (Dùng khi chạy local)
                     {
-                        var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+                        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                        var uploadsFolder = Path.Combine(webRoot, "uploads");
                         if (!Directory.Exists(uploadsFolder))
                         {
                             Directory.CreateDirectory(uploadsFolder);
