@@ -82,6 +82,14 @@ namespace BackgroundRemovalMVP.Models
         public DateTime? SubscriptionExpiresAt { get; set; }
     }
 
+    public class AdminUpdateUserDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public bool IsPro { get; set; }
+        public DateTime? SubscriptionExpiresAt { get; set; }
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
     public class ActivityDto
     {
         public int Id { get; set; }

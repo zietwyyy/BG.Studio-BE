@@ -43,6 +43,8 @@ namespace BackgroundRemovalMVP.Controllers
             var subject = "Mã xác minh đăng ký tài khoản - BG.Studio";
             var body = $"<h3>Mã xác minh đăng ký của bạn là: <strong>{code}</strong></h3><p>Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho người khác.</p>";
 
+            Console.WriteLine($"[DEBUG] Mã xác minh đăng ký cho {request.Email}: {code}");
+
             await _emailService.SendEmailAsync(request.Email, subject, body);
 
             return Ok(new { message = "Mã xác minh đã được gửi đến email của bạn." });
@@ -152,6 +154,8 @@ namespace BackgroundRemovalMVP.Controllers
 
             var subject = "Khôi phục mật khẩu - BG.Studio";
             var body = $"<h3>Mã xác nhận khôi phục mật khẩu của bạn là: <strong>{otp}</strong></h3><p>Mã này sẽ hết hạn sau 15 phút.</p>";
+
+            Console.WriteLine($"[DEBUG] Mã khôi phục mật khẩu cho {user.Email}: {otp}");
 
             await _emailService.SendEmailAsync(user.Email, subject, body);
 

@@ -6,6 +6,7 @@ using BackgroundRemovalMVP.Models;
 
 namespace BackgroundRemovalMVP.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class AdminController : ControllerBase
@@ -17,9 +18,18 @@ namespace BackgroundRemovalMVP.Controllers
             _context = context;
         }
 
+        private bool IsAdminUser()
+        {
+            var username = User.Identity?.Name;
+            return !string.IsNullOrEmpty(username) && username.ToLower() == "admin";
+        }
+
         [HttpGet("stats")]
         public async Task<IActionResult> GetStats()
         {
+            if (!IsAdminUser())
+                return StatusCode(403, "Bạn không có quyền truy cập.");
+
             var users = await _context.Users.ToListAsync();
             var images = await _context.ProcessedImages.Include(i => i.User).ToListAsync();
 
@@ -89,6 +99,9 @@ namespace BackgroundRemovalMVP.Controllers
         [HttpGet("user/{id}/history")]
         public async Task<IActionResult> GetUserHistory(int id)
         {
+            if (!IsAdminUser())
+                return StatusCode(403, "Bạn không có quyền truy cập.");
+
             var user = await _context.Users.FindAsync(id);
             if (user == null)
                 return NotFound("Người dùng không tồn tại.");
@@ -109,6 +122,48 @@ namespace BackgroundRemovalMVP.Controllers
                 .ToListAsync();
 
             return Ok(history);
+        }
+
+        [HttpPut("user/{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] AdminUpdateUserDto request)
+        {
+            if (!IsAdminUser())
+                return StatusCode(403, "Bạn không có quyền truy cập.");
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return NotFound("Người dùng không tồn tại.");
+
+            if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                var emailExists = await _context.Users.AnyAsync(u => u.Id != id && !string.IsNullOrEmpty(u.Email) && u.Email.ToLower() == request.Email.ToLower());
+                if (emailExists)
+                    return BadRequest("Email đã được sử dụng bởi người dùng khác.");
+                user.Email = request.Email;
+            }
+
+            user.IsPro = request.IsPro;
+            if (request.IsPro)
+            {
+                user.SubscriptionExpiresAt = request.SubscriptionExpiresAt ?? DateTime.UtcNow.AddDays(30);
+            }
+            else
+            {
+                user.SubscriptionExpiresAt = null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                if (request.NewPassword.Length < 6)
+                    return BadRequest("Mật khẩu mới phải có ít nhất 6 ký tự.");
+                
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                var bytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(request.NewPassword));
+                user.PasswordHash = Convert.ToHexString(bytes);
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật tài khoản người dùng thành công." });
         }
     }
 }
