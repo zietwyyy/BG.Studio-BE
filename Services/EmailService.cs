@@ -54,6 +54,7 @@ namespace BackgroundRemovalMVP.Services
                 {
                     var error = await response.Content.ReadAsStringAsync();
                     Console.WriteLine($"[EmailService] Lỗi gửi email (Brevo API): {response.StatusCode} - {error}");
+                    throw new Exception($"Brevo API: {response.StatusCode} - {error}");
                 }
                 else
                 {
@@ -63,6 +64,7 @@ namespace BackgroundRemovalMVP.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"[EmailService] Ngoại lệ khi gửi HTTP API email: {ex.Message}");
+                throw;
             }
         }
     }

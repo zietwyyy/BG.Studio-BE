@@ -45,7 +45,14 @@ namespace BackgroundRemovalMVP.Controllers
 
             Console.WriteLine($"[DEBUG] Mã xác minh đăng ký cho {request.Email}: {code}");
 
-            await _emailService.SendEmailAsync(request.Email, subject, body);
+            try
+            {
+                await _emailService.SendEmailAsync(request.Email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi gửi email từ máy chủ: {ex.Message}");
+            }
 
             return Ok(new { message = "Mã xác minh đã được gửi đến email của bạn." });
         }
@@ -157,7 +164,14 @@ namespace BackgroundRemovalMVP.Controllers
 
             Console.WriteLine($"[DEBUG] Mã khôi phục mật khẩu cho {user.Email}: {otp}");
 
-            await _emailService.SendEmailAsync(user.Email, subject, body);
+            try
+            {
+                await _emailService.SendEmailAsync(user.Email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi gửi email từ máy chủ: {ex.Message}");
+            }
 
             return Ok(new { message = "Mã khôi phục đã được gửi đến email của bạn." });
         }
