@@ -51,9 +51,8 @@ namespace BackgroundRemovalMVP.Controllers
             }
             catch (Exception ex)
             {
-                _registerVerificationCodes[request.Email.ToLower()] = ("123456", DateTime.UtcNow.AddMinutes(5));
-                Console.WriteLine($"[FALLBACK] Gửi email lỗi, sử dụng OTP mặc định 123456. Chi tiết: {ex.Message}");
-                return Ok(new { message = "Gửi email lỗi. Mã xác minh mặc định để thử nghiệm của bạn là: 123456" });
+                Console.WriteLine($"[FALLBACK] Gửi email lỗi, cấp mã ngẫu nhiên tạm thời {code}. Chi tiết: {ex.Message}");
+                return Ok(new { message = $"Lỗi gửi email: {ex.Message}. Mã xác minh tạm thời là: {code}" });
             }
 
             return Ok(new { message = "Mã xác minh đã được gửi đến email của bạn." });
@@ -75,16 +74,11 @@ namespace BackgroundRemovalMVP.Controllers
                 return BadRequest("Email không hợp lệ.");
 
             var emailLower = request.Email.ToLower();
-            bool isWildcard = request.VerificationCode == "123456";
-
-            if (!isWildcard)
+            if (!_registerVerificationCodes.TryGetValue(emailLower, out var verification) || 
+                verification.Code != request.VerificationCode || 
+                verification.Expires < DateTime.UtcNow)
             {
-                if (!_registerVerificationCodes.TryGetValue(emailLower, out var verification) || 
-                    verification.Code != request.VerificationCode || 
-                    verification.Expires < DateTime.UtcNow)
-                {
-                    return BadRequest("Mã xác minh không chính xác hoặc đã hết hạn.");
-                }
+                return BadRequest("Mã xác minh không chính xác hoặc đã hết hạn.");
             }
 
             _registerVerificationCodes.TryRemove(emailLower, out _);
@@ -177,11 +171,8 @@ namespace BackgroundRemovalMVP.Controllers
             }
             catch (Exception ex)
             {
-                user.ResetPasswordToken = "123456";
-                user.ResetTokenExpires = DateTime.UtcNow.AddMinutes(15);
-                await _context.SaveChangesAsync();
-                Console.WriteLine($"[FALLBACK] Gửi email lỗi, sử dụng OTP khôi phục mặc định 123456. Chi tiết: {ex.Message}");
-                return Ok(new { message = "Gửi email lỗi. Mã khôi phục mặc định để thử nghiệm của bạn là: 123456" });
+                Console.WriteLine($"[FALLBACK] Gửi email lỗi, cấp mã ngẫu nhiên tạm thời {otp}. Chi tiết: {ex.Message}");
+                return Ok(new { message = $"Lỗi gửi email: {ex.Message}. Mã khôi phục tạm thời là: {otp}" });
             }
 
             return Ok(new { message = "Mã khôi phục đã được gửi đến email của bạn." });
@@ -190,20 +181,7 @@ namespace BackgroundRemovalMVP.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-            User? user = null;
-            if (request.Token == "123456")
-            {
-                // Find the user who has a pending, non-expired password reset request (most recent first)
-                user = await _context.Users
-                    .Where(u => !string.IsNullOrEmpty(u.ResetPasswordToken) && u.ResetTokenExpires > DateTime.UtcNow)
-                    .OrderByDescending(u => u.ResetTokenExpires)
-                    .FirstOrDefaultAsync();
-            }
-            else
-            {
-                user = await _context.Users.FirstOrDefaultAsync(u => u.ResetPasswordToken == request.Token && u.ResetTokenExpires > DateTime.UtcNow);
-            }
-
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.ResetPasswordToken == request.Token && u.ResetTokenExpires > DateTime.UtcNow);
             if (user == null)
                 return BadRequest("Mã xác nhận không hợp lệ hoặc đã hết hạn.");
 
