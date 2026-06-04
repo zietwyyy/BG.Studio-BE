@@ -266,21 +266,21 @@ namespace BackgroundRemovalMVP.Controllers
 
                 var payload = new { inputs = request.Prompt };
                 
-                // Sử dụng model Stable Diffusion XL (SDXL) rất đẹp và miễn phí trên Hugging Face Serverless API
-                var hfUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0";
+                // Sử dụng model FLUX.1-schnell siêu nhanh, chất lượng cực cao mới nhất của Black Forest Labs (Miễn phí trên Hugging Face)
+                var hfUrl = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell";
                 var response = await client.PostAsJsonAsync(hfUrl, payload);
 
-                // Nếu SDXL bị ngủ hoặc lỗi, fallback sang model Stable Diffusion v1.5 nhanh hơn
+                // Nếu FLUX.1-schnell bị lỗi, fallback sang model FLUX.1-dev
                 if (!response.IsSuccessStatusCode)
                 {
-                    var fallbackUrl = "https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-v1-5";
+                    var fallbackUrl = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-dev";
                     response = await client.PostAsJsonAsync(fallbackUrl, payload);
                 }
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errText = await response.Content.ReadAsStringAsync();
-                    return StatusCode((int)response.StatusCode, $"Lỗi sinh ảnh từ Hugging Face AI: {errText}");
+                    return StatusCode((int)response.StatusCode, $"Lỗi sinh ảnh từ Hugging Face AI (FLUX.1): {errText}");
                 }
 
                 generatedBytes = await response.Content.ReadAsByteArrayAsync();
