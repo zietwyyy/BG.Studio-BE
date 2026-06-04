@@ -254,7 +254,7 @@ namespace BackgroundRemovalMVP.Controllers
                 client.Timeout = TimeSpan.FromSeconds(60);
 
                 string promptEncoded = Uri.EscapeDataString(request.Prompt);
-                string pollinationsUrl = $"https://image.pollinations.ai/prompt/{promptEncoded}?width=800&height=600&nologo=true&private=true";
+                string pollinationsUrl = $"https://image.pollinations.ai/prompt/{promptEncoded}?seed={new Random().Next(1, 100000)}";
 
                 generatedBytes = await client.GetByteArrayAsync(pollinationsUrl);
             }
