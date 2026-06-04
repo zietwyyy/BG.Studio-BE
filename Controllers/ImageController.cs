@@ -185,8 +185,9 @@ namespace BackgroundRemovalMVP.Controllers
 
                         await System.IO.File.WriteAllBytesAsync(processedFilePath, processedBytes);
 
-                        originalUrl = $"/uploads/{originalFileName}";
-                        processedUrl = $"/uploads/{processedFileName}";
+                        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                        originalUrl = $"{baseUrl}/uploads/{originalFileName}";
+                        processedUrl = $"{baseUrl}/uploads/{processedFileName}";
                     }
 
                     // Lưu thông tin vào DB
@@ -329,8 +330,8 @@ namespace BackgroundRemovalMVP.Controllers
                     var fileName = $"{uniqueId}_generated.png";
                     var filePath = Path.Combine(uploadsFolder, fileName);
 
-                    await System.IO.File.WriteAllBytesAsync(filePath, generatedBytes);
-                    processedUrl = $"/uploads/{fileName}";
+                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    processedUrl = $"{baseUrl}/uploads/{fileName}";
                 }
 
                 // Lưu thông tin vào DB để tính lượt dùng và hiển thị lịch sử
