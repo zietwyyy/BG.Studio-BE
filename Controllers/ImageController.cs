@@ -207,5 +207,118 @@ namespace BackgroundRemovalMVP.Controllers
             Response.Headers.Append("X-Background-Removal-Source", sourceUsed);
             return File(processedBytes, "image/png");
         }
+
+        [HttpPost("generate")]
+        public async Task<IActionResult> GenerateImage([FromBody] GenerateImageRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized("Bạn cần đăng nhập để sử dụng tính năng tạo ảnh bằng AI.");
+            }
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Prompt))
+            {
+                return BadRequest("Prompt không hợp lệ.");
+            }
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return Unauthorized("Tài khoản không tồn tại.");
+
+            // Kiểm tra trạng thái Pro
+            bool isPro = user.IsPro && user.SubscriptionExpiresAt.HasValue && user.SubscriptionExpiresAt.Value > DateTime.UtcNow;
+            int dailyLimit = isPro ? 30 : 10;
+
+            // Đếm số ảnh đã xử lý hôm nay (theo giờ UTC)
+            var today = DateTime.UtcNow.Date;
+            var todayCount = await _context.ProcessedImages
+                .CountAsync(img => img.UserId == userId && img.CreatedAt >= today);
+
+            if (todayCount >= dailyLimit)
+            {
+                return StatusCode(402, new { 
+                    message = $"Bạn đã dùng hết giới hạn ảnh trong ngày ({todayCount}/{dailyLimit} ảnh). Hãy nâng cấp lên tài khoản Pro (20k/tháng) để có 30 lượt dùng/ngày!",
+                    limitReached = true,
+                    currentUsage = todayCount,
+                    limit = dailyLimit
+                });
+            }
+
+            byte[] generatedBytes;
+            string sourceUsed = "AI Generator";
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(60);
+
+                string promptEncoded = Uri.EscapeDataString(request.Prompt);
+                string pollinationsUrl = $"https://image.pollinations.ai/prompt/{promptEncoded}?width=800&height=600&nologo=true&private=true";
+
+                generatedBytes = await client.GetByteArrayAsync(pollinationsUrl);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi khi kết nối đến AI Generator: {ex.Message}");
+            }
+
+            string originalUrl = "AI Prompt: " + request.Prompt;
+            string processedUrl = "";
+
+            try
+            {
+                // Nếu có cấu hình Cloudinary (Dùng khi deploy)
+                if (_cloudinary != null)
+                {
+                    using (var procStream = new MemoryStream(generatedBytes))
+                    {
+                        var procParams = new ImageUploadParams()
+                        {
+                            File = new FileDescription("generated.png", procStream),
+                            Folder = "bg-remover-processed"
+                        };
+                        var procResult = await _cloudinary.UploadAsync(procParams);
+                        processedUrl = procResult.SecureUrl.ToString();
+                    }
+                }
+                else // Lưu cục bộ (Dùng khi chạy local)
+                {
+                    var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                    var uploadsFolder = Path.Combine(webRoot, "uploads");
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+
+                    var uniqueId = Guid.NewGuid().ToString();
+                    var fileName = $"{uniqueId}_generated.png";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
+                    await System.IO.File.WriteAllBytesAsync(filePath, generatedBytes);
+                    processedUrl = $"/uploads/{fileName}";
+                }
+
+                // Lưu thông tin vào DB
+                var processedImage = new ProcessedImage
+                {
+                    UserId = userId,
+                    OriginalFileName = request.Prompt,
+                    OriginalUrl = originalUrl,
+                    ProcessedUrl = processedUrl,
+                    Source = sourceUsed,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.ProcessedImages.Add(processedImage);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception dbEx)
+            {
+                Console.WriteLine($"[Lỗi] Không thể lưu lịch sử vào DB: {dbEx.Message}");
+            }
+
+            return Ok(new { url = processedUrl });
+        }
     }
 }

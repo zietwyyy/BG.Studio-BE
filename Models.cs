@@ -130,4 +130,9 @@ namespace BackgroundRemovalMVP.Models
         public string Email { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
     }
+
+    public class GenerateImageRequest
+    {
+        public string Prompt { get; set; } = string.Empty;
+    }
 }
