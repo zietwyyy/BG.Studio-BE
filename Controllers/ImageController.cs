@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using BackgroundRemovalMVP.Data;
 using BackgroundRemovalMVP.Models;
 using CloudinaryDotNet;
@@ -16,16 +18,19 @@ namespace BackgroundRemovalMVP.Controllers
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly Cloudinary? _cloudinary;
+        private readonly IConfiguration _configuration;
 
         public ImageController(
             IHttpClientFactory httpClientFactory, 
             AppDbContext context, 
             IWebHostEnvironment env,
+            IConfiguration configuration,
             Cloudinary? cloudinary = null) // Inject Cloudinary dưới dạng optional
         {
             _httpClientFactory = httpClientFactory;
             _context = context;
             _env = env;
+            _configuration = configuration;
             _cloudinary = cloudinary;
         }
 
@@ -245,17 +250,82 @@ namespace BackgroundRemovalMVP.Controllers
                 });
             }
 
-            }
-
-            // Tạo link Pollinations AI trực tiếp
-            string promptEncoded = Uri.EscapeDataString(request.Prompt);
-            int seed = new Random().Next(1, 100000);
-            string processedUrl = $"https://image.pollinations.ai/prompt/{promptEncoded}?seed={seed}";
-            string originalUrl = "AI Prompt: " + request.Prompt;
-            string sourceUsed = "AI Generator";
+            byte[] generatedBytes;
+            string sourceUsed = "Hugging Face AI";
 
             try
             {
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(60);
+
+                var token = _configuration["HuggingFace:ApiToken"] ?? Environment.GetEnvironmentVariable("HUGGINGFACE_API_TOKEN");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
+
+                var payload = new { inputs = request.Prompt };
+                
+                // Sử dụng model Stable Diffusion XL (SDXL) rất đẹp và miễn phí trên Hugging Face Serverless API
+                var hfUrl = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0";
+                var response = await client.PostAsJsonAsync(hfUrl, payload);
+
+                // Nếu SDXL bị ngủ hoặc lỗi, fallback sang model Stable Diffusion v1.5 nhanh hơn
+                if (!response.IsSuccessStatusCode)
+                {
+                    var fallbackUrl = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5";
+                    response = await client.PostAsJsonAsync(fallbackUrl, payload);
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errText = await response.Content.ReadAsStringAsync();
+                    return StatusCode((int)response.StatusCode, $"Lỗi sinh ảnh từ Hugging Face AI: {errText}");
+                }
+
+                generatedBytes = await response.Content.ReadAsByteArrayAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi kết nối đến Hugging Face AI: {ex.Message}");
+            }
+
+            string originalUrl = "AI Prompt: " + request.Prompt;
+            string processedUrl = "";
+
+            try
+            {
+                // Nếu có cấu hình Cloudinary (Dùng khi deploy)
+                if (_cloudinary != null)
+                {
+                    using (var procStream = new MemoryStream(generatedBytes))
+                    {
+                        var procParams = new ImageUploadParams()
+                        {
+                            File = new FileDescription("generated.png", procStream),
+                            Folder = "bg-remover-processed"
+                        };
+                        var procResult = await _cloudinary.UploadAsync(procParams);
+                        processedUrl = procResult.SecureUrl.ToString();
+                    }
+                }
+                else // Lưu cục bộ (Dùng khi chạy local)
+                {
+                    var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                    var uploadsFolder = Path.Combine(webRoot, "uploads");
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+
+                    var uniqueId = Guid.NewGuid().ToString();
+                    var fileName = $"{uniqueId}_generated.png";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
+                    await System.IO.File.WriteAllBytesAsync(filePath, generatedBytes);
+                    processedUrl = $"/uploads/{fileName}";
+                }
+
                 // Lưu thông tin vào DB để tính lượt dùng và hiển thị lịch sử
                 var processedImage = new ProcessedImage
                 {
