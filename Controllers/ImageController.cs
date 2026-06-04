@@ -267,13 +267,13 @@ namespace BackgroundRemovalMVP.Controllers
                 var payload = new { inputs = request.Prompt };
                 
                 // Sử dụng model Stable Diffusion XL (SDXL) rất đẹp và miễn phí trên Hugging Face Serverless API
-                var hfUrl = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0";
+                var hfUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0";
                 var response = await client.PostAsJsonAsync(hfUrl, payload);
 
                 // Nếu SDXL bị ngủ hoặc lỗi, fallback sang model Stable Diffusion v1.5 nhanh hơn
                 if (!response.IsSuccessStatusCode)
                 {
-                    var fallbackUrl = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5";
+                    var fallbackUrl = "https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-v1-5";
                     response = await client.PostAsJsonAsync(fallbackUrl, payload);
                 }
 
