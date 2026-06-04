@@ -269,7 +269,9 @@ namespace BackgroundRemovalMVP.Controllers
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 }
 
-                var payload = new { inputs = request.Prompt };
+                // Tự động dịch prompt sang tiếng Anh để Hugging Face AI (FLUX.1) hiểu và tạo ra ảnh chất lượng cao nhất giống như ChatGPT/Gemini
+                var translatedPrompt = await TranslateToEnglish(request.Prompt);
+                var payload = new { inputs = translatedPrompt };
                 
                 // Sử dụng model FLUX.1-schnell siêu nhanh, chất lượng cực cao mới nhất của Black Forest Labs (Miễn phí trên Hugging Face)
                 var hfUrl = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell";
@@ -351,6 +353,37 @@ namespace BackgroundRemovalMVP.Controllers
             }
 
             return Ok(new { url = processedUrl });
+        }
+
+        private async Task<string> TranslateToEnglish(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text;
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    var url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q={Uri.EscapeDataString(text)}";
+                    var response = await client.GetAsync(url);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync();
+                        int firstQuoteIndex = json.IndexOf('"');
+                        if (firstQuoteIndex >= 0)
+                        {
+                            int secondQuoteIndex = json.IndexOf('"', firstQuoteIndex + 1);
+                            if (secondQuoteIndex > firstQuoteIndex)
+                            {
+                                return json.Substring(firstQuoteIndex + 1, secondQuoteIndex - firstQuoteIndex - 1);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Lỗi dịch thuật]: {ex.Message}");
+            }
+            return text;
         }
     }
 }
