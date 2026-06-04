@@ -245,61 +245,18 @@ namespace BackgroundRemovalMVP.Controllers
                 });
             }
 
-            byte[] generatedBytes;
+            }
+
+            // Tạo link Pollinations AI trực tiếp
+            string promptEncoded = Uri.EscapeDataString(request.Prompt);
+            int seed = new Random().Next(1, 100000);
+            string processedUrl = $"https://image.pollinations.ai/prompt/{promptEncoded}?seed={seed}";
+            string originalUrl = "AI Prompt: " + request.Prompt;
             string sourceUsed = "AI Generator";
 
             try
             {
-                var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(60);
-
-                string promptEncoded = Uri.EscapeDataString(request.Prompt);
-                string pollinationsUrl = $"https://image.pollinations.ai/prompt/{promptEncoded}?seed={new Random().Next(1, 100000)}";
-
-                generatedBytes = await client.GetByteArrayAsync(pollinationsUrl);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Lỗi khi kết nối đến AI Generator: {ex.Message}");
-            }
-
-            string originalUrl = "AI Prompt: " + request.Prompt;
-            string processedUrl = "";
-
-            try
-            {
-                // Nếu có cấu hình Cloudinary (Dùng khi deploy)
-                if (_cloudinary != null)
-                {
-                    using (var procStream = new MemoryStream(generatedBytes))
-                    {
-                        var procParams = new ImageUploadParams()
-                        {
-                            File = new FileDescription("generated.png", procStream),
-                            Folder = "bg-remover-processed"
-                        };
-                        var procResult = await _cloudinary.UploadAsync(procParams);
-                        processedUrl = procResult.SecureUrl.ToString();
-                    }
-                }
-                else // Lưu cục bộ (Dùng khi chạy local)
-                {
-                    var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                    var uploadsFolder = Path.Combine(webRoot, "uploads");
-                    if (!Directory.Exists(uploadsFolder))
-                    {
-                        Directory.CreateDirectory(uploadsFolder);
-                    }
-
-                    var uniqueId = Guid.NewGuid().ToString();
-                    var fileName = $"{uniqueId}_generated.png";
-                    var filePath = Path.Combine(uploadsFolder, fileName);
-
-                    await System.IO.File.WriteAllBytesAsync(filePath, generatedBytes);
-                    processedUrl = $"/uploads/{fileName}";
-                }
-
-                // Lưu thông tin vào DB
+                // Lưu thông tin vào DB để tính lượt dùng và hiển thị lịch sử
                 var processedImage = new ProcessedImage
                 {
                     UserId = userId,
