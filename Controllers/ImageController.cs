@@ -258,7 +258,12 @@ namespace BackgroundRemovalMVP.Controllers
                 var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(60);
 
-                var token = _configuration["HuggingFace:ApiToken"] ?? Environment.GetEnvironmentVariable("HUGGINGFACE_API_TOKEN");
+                var token = _configuration["HuggingFace:ApiToken"];
+                if (string.IsNullOrEmpty(token) || token.Contains("YOUR_"))
+                {
+                    token = Environment.GetEnvironmentVariable("HUGGINGFACE_API_TOKEN");
+                }
+
                 if (!string.IsNullOrEmpty(token))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
