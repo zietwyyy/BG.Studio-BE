@@ -330,6 +330,8 @@ namespace BackgroundRemovalMVP.Controllers
                     var fileName = $"{uniqueId}_generated.png";
                     var filePath = Path.Combine(uploadsFolder, fileName);
 
+                    await System.IO.File.WriteAllBytesAsync(filePath, generatedBytes);
+
                     var baseUrl = $"{Request.Scheme}://{Request.Host}";
                     processedUrl = $"{baseUrl}/uploads/{fileName}";
                 }
