@@ -160,6 +160,25 @@ app.UseSwaggerUI();
 app.UseCors("AllowAll");
 
 app.UseDefaultFiles();
+
+// Serve the uploads directory explicitly using PhysicalFileProvider to guarantee it works on Render/Docker
+var uploadsPathForStatic = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+if (!Directory.Exists(uploadsPathForStatic))
+{
+    Directory.CreateDirectory(uploadsPathForStatic);
+}
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPathForStatic),
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    }
+});
+
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
