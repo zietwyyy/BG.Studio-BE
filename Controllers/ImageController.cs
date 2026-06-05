@@ -277,7 +277,22 @@ namespace BackgroundRemovalMVP.Controllers
 
                 // Tự động dịch prompt sang tiếng Anh để Hugging Face AI (FLUX.1) hiểu và tạo ra ảnh chất lượng cao nhất giống như ChatGPT/Gemini
                 var translatedPrompt = await TranslateToEnglish(request.Prompt);
-                var payload = new { inputs = translatedPrompt };
+                
+                // Tối ưu hóa prompt để tạo phông nền chuyên nghiệp và đẹp mắt hơn (tránh AI tự vẽ thêm người lạ vào ảnh)
+                var enhancedPrompt = translatedPrompt;
+                enhancedPrompt = enhancedPrompt
+                    .Replace("create me a picture", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("create a picture of me", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("make me a picture", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("make an image of me", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("photo of me", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("i am in", "in", StringComparison.OrdinalIgnoreCase)
+                    .Trim();
+
+                // Thêm các từ khóa bổ trợ để tạo phông nền trống, có độ sâu trường ảnh (bokeh) và ánh sáng studio chuyên nghiệp
+                enhancedPrompt += ", empty background, background scene, no people in the background, professional studio photography, realistic, depth of field, 8k resolution, cinematic lighting, clean backdrop";
+
+                var payload = new { inputs = enhancedPrompt };
                 
                 // Sử dụng model FLUX.1-schnell siêu nhanh, chất lượng cực cao mới nhất của Black Forest Labs (Miễn phí trên Hugging Face)
                 var hfUrl = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell";
