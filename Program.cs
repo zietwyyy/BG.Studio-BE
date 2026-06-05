@@ -124,6 +124,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Đảm bảo thư mục wwwroot và uploads tồn tại trước khi Build để ASP.NET Core nhận diện Static Files
+var webRootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+var uploadsPath = Path.Combine(webRootPath, "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+builder.Environment.WebRootPath = webRootPath;
+
 var app = builder.Build();
 
 // Tự động khởi tạo database khi bắt đầu chạy ứng dụng (SQLite hoặc PostgreSQL)

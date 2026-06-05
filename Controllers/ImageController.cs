@@ -185,7 +185,12 @@ namespace BackgroundRemovalMVP.Controllers
 
                         await System.IO.File.WriteAllBytesAsync(processedFilePath, processedBytes);
 
-                        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                        var scheme = Request.Headers["X-Forwarded-Proto"].ToString();
+                        if (string.IsNullOrEmpty(scheme))
+                        {
+                            scheme = Request.Scheme;
+                        }
+                        var baseUrl = $"{scheme}://{Request.Host}";
                         originalUrl = $"{baseUrl}/uploads/{originalFileName}";
                         processedUrl = $"{baseUrl}/uploads/{processedFileName}";
                     }
@@ -332,7 +337,12 @@ namespace BackgroundRemovalMVP.Controllers
 
                     await System.IO.File.WriteAllBytesAsync(filePath, generatedBytes);
 
-                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    var scheme = Request.Headers["X-Forwarded-Proto"].ToString();
+                    if (string.IsNullOrEmpty(scheme))
+                    {
+                        scheme = Request.Scheme;
+                    }
+                    var baseUrl = $"{scheme}://{Request.Host}";
                     processedUrl = $"{baseUrl}/uploads/{fileName}";
                 }
 
