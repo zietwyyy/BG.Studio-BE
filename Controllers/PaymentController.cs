@@ -27,7 +27,7 @@ namespace BackgroundRemovalMVP.Controllers
 
         [HttpPost("create")]
         [Authorize]
-        public async Task<IActionResult> CreatePayment()
+        public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentRequest? request)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!int.TryParse(userIdClaim, out int userId))
@@ -82,10 +82,28 @@ namespace BackgroundRemovalMVP.Controllers
             {
                 var host = Request.Host.Value;
                 var protocol = Request.Scheme;
+
+                // Support X-Forwarded-Proto for HTTPS behind Render proxy
+                var xForwardedProto = Request.Headers["X-Forwarded-Proto"].ToString();
+                if (!string.IsNullOrEmpty(xForwardedProto))
+                {
+                    protocol = xForwardedProto;
+                }
+
                 var baseUrl = $"{protocol}://{host}";
 
-                var cancelUrl = $"{baseUrl}/index.html?payment=cancel&order={orderCode}";
-                var returnUrl = $"{baseUrl}/index.html?payment=success&order={orderCode}";
+                string? cancelUrl = request?.CancelUrl;
+                string? returnUrl = request?.ReturnUrl;
+
+                if (string.IsNullOrEmpty(cancelUrl))
+                {
+                    cancelUrl = $"{baseUrl}/index.html?payment=cancel&order={orderCode}";
+                }
+                if (string.IsNullOrEmpty(returnUrl))
+                {
+                    returnUrl = $"{baseUrl}/index.html?payment=success&order={orderCode}";
+                }
+
                 var description = $"BGSTUDIO PRO {orderCode}";
 
                 // 1. Tạo chuỗi signature của PayOS theo alphabet của key
@@ -237,5 +255,11 @@ namespace BackgroundRemovalMVP.Controllers
     public class ConfirmMockRequest
     {
         public long OrderCode { get; set; }
+    }
+
+    public class CreatePaymentRequest
+    {
+        public string? ReturnUrl { get; set; }
+        public string? CancelUrl { get; set; }
     }
 }
