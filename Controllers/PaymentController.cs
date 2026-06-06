@@ -61,7 +61,7 @@ namespace BackgroundRemovalMVP.Controllers
             {
                 // FALLBACK CHẾ ĐỘ MOCK (Phục vụ demo/thuyết trình)
                 // Tạo một mã QR VietQR mẫu để hiển thị
-                string memo = $"BGSTUDIO {orderCode}";
+                string memo = $"FACEIN {orderCode}";
                 string mockQrUrl = $"https://img.vietqr.io/image/MB-0386331428-compact.png?amount={amount}&addInfo={Uri.EscapeDataString(memo)}&accountName=NGUYEN%20VIET%20HUY";
 
                 return Ok(new
@@ -104,7 +104,7 @@ namespace BackgroundRemovalMVP.Controllers
                     returnUrl = $"{baseUrl}/index.html?payment=success&order={orderCode}";
                 }
 
-                var description = $"BGSTUDIO PRO {orderCode}";
+                var description = $"FACEIN PRO {orderCode}";
 
                 // 1. Tạo chuỗi signature của PayOS theo alphabet của key
                 // format: amount={amount}&cancelUrl={cancelUrl}&description={description}&orderCode={orderCode}&returnUrl={returnUrl}

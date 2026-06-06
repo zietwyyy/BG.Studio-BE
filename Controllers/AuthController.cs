@@ -40,7 +40,7 @@ namespace BackgroundRemovalMVP.Controllers
             var code = new Random().Next(100000, 999999).ToString();
             _registerVerificationCodes[request.Email.ToLower()] = (code, DateTime.UtcNow.AddMinutes(5));
 
-            var subject = "Mã xác minh đăng ký tài khoản - BG.Studio";
+            var subject = "Mã xác minh đăng ký tài khoản - FaceIn";
             var body = $"<h3>Mã xác minh đăng ký của bạn là: <strong>{code}</strong></h3><p>Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho người khác.</p>";
 
             Console.WriteLine($"[DEBUG] Mã xác minh đăng ký cho {request.Email}: {code}");
@@ -160,7 +160,7 @@ namespace BackgroundRemovalMVP.Controllers
             user.ResetTokenExpires = DateTime.UtcNow.AddMinutes(15);
             await _context.SaveChangesAsync();
 
-            var subject = "Khôi phục mật khẩu - BG.Studio";
+            var subject = "Khôi phục mật khẩu - FaceIn";
             var body = $"<h3>Mã xác nhận khôi phục mật khẩu của bạn là: <strong>{otp}</strong></h3><p>Mã này sẽ hết hạn sau 15 phút.</p>";
 
             Console.WriteLine($"[DEBUG] Mã khôi phục mật khẩu cho {user.Email}: {otp}");

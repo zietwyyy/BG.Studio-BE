@@ -25,7 +25,7 @@ namespace BackgroundRemovalMVP.Services
         {
             var apiKey = _configuration["Brevo:ApiKey"];
             var senderEmail = _configuration["Brevo:SenderEmail"] ?? "ngvhuy1612@gmail.com";
-            var senderName = _configuration["Brevo:SenderName"] ?? "BG.Studio";
+            var senderName = _configuration["Brevo:SenderName"] ?? "FaceIn";
 
             if (string.IsNullOrEmpty(apiKey) || apiKey == "YOUR_BREVO_API_KEY")
             {
