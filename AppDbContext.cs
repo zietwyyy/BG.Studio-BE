@@ -12,6 +12,7 @@ namespace BackgroundRemovalMVP.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<ProcessedImage> ProcessedImages => Set<ProcessedImage>();
         public DbSet<PaymentOrder> PaymentOrders => Set<PaymentOrder>();
+        public DbSet<Review> Reviews => Set<Review>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -31,9 +31,20 @@ namespace BackgroundRemovalMVP.Models
     {
         public int Id { get; set; }
         public int UserId { get; set; }
+        public User? User { get; set; } // Navigation property
         public long OrderCode { get; set; }
         public int Amount { get; set; }
         public string Status { get; set; } = "PENDING"; // PENDING, PAID, CANCELLED
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    public class Review
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public User? User { get; set; }
+        public int Rating { get; set; } // 1 to 5 stars
+        public string Comment { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
@@ -66,11 +77,17 @@ namespace BackgroundRemovalMVP.Models
         public int TotalImages { get; set; }
         public int LocalImages { get; set; }
         public int CloudImages { get; set; }
-        public double TotalSavings { get; set; } // Tính bằng USD hoặc VNĐ giả lập
-        public double TotalRevenue { get; set; } // Doanh thu từ các đơn hàng PAID
+        public double TotalSavings { get; set; }
+        public double TotalRevenue { get; set; }
+        public int TotalTransactions { get; set; }
+        public int PaidTransactions { get; set; }
+        public int TotalReviews { get; set; }
+        public double AverageRating { get; set; }
         public List<ActivityDto> RecentActivities { get; set; } = new();
         public List<DailyStatDto> DailyStats { get; set; } = new();
+        public List<DailyRevenueDto> DailyRevenue { get; set; } = new();
         public List<AdminUserDto> RegisteredUsers { get; set; } = new();
+        public List<ReviewDto> RecentReviews { get; set; } = new();
     }
 
     public class AdminUserDto
@@ -107,6 +124,32 @@ namespace BackgroundRemovalMVP.Models
         public int Count { get; set; }
     }
 
+    public class DailyRevenueDto
+    {
+        public string Date { get; set; } = string.Empty;
+        public double Revenue { get; set; }
+    }
+
+    public class TransactionDto
+    {
+        public int Id { get; set; }
+        public long OrderCode { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int Amount { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class ReviewDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public int Rating { get; set; }
+        public string Comment { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
     public class UpdateProfileRequest
     {
         public string OldPassword { get; set; } = string.Empty;
@@ -134,5 +177,11 @@ namespace BackgroundRemovalMVP.Models
     public class GenerateImageRequest
     {
         public string Prompt { get; set; } = string.Empty;
+    }
+
+    public class CreateReviewRequest
+    {
+        public int Rating { get; set; }
+        public string Comment { get; set; } = string.Empty;
     }
 }

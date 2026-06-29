@@ -1,10 +1,12 @@
 using System.Text;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using BackgroundRemovalMVP.Data;
 using BackgroundRemovalMVP.Services;
+using BackgroundRemovalMVP.Models;
 using CloudinaryDotNet;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -143,10 +145,109 @@ using (var scope = app.Services.CreateScope())
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         context.Database.EnsureCreated();
         Console.WriteLine("[Database] Khởi tạo các bảng thành công.");
+
+        // Seeding database
+        if (await context.Users.CountAsync() <= 1)
+        {
+            Console.WriteLine("[Database] Bắt đầu gieo mầm dữ liệu mẫu (Seeding)...");
+            
+            // Seed Users
+            var usernames = new[] { "ngvhuy1612", "hoangminh", "quynhanh", "thanhnam", "linhchi", "tiendung", "vietduc", "haiphuong", "phuongthao", "trungdung" };
+            var usersList = new List<User>();
+            
+            using var sha256 = SHA256.Create();
+            var defaultHash = Convert.ToHexString(sha256.ComputeHash(Encoding.UTF8.GetBytes("123456")));
+
+            for (int i = 0; i < usernames.Length; i++)
+            {
+                var isPro = i < 4; // 4 Pro users
+                usersList.Add(new User
+                {
+                    Username = usernames[i],
+                    Email = $"{usernames[i]}@gmail.com",
+                    PasswordHash = defaultHash,
+                    IsPro = isPro,
+                    SubscriptionExpiresAt = isPro ? DateTime.UtcNow.AddDays(30) : null
+                });
+            }
+            context.Users.AddRange(usersList);
+            await context.SaveChangesAsync();
+
+            // Fetch created users to link relationships
+            var usersInDb = await context.Users.Where(u => u.Username != "admin").ToListAsync();
+
+            // Seed Payment Orders
+            var random = new Random();
+            var orders = new List<PaymentOrder>();
+            for (int i = 0; i < 8; i++)
+            {
+                var userIdx = random.Next(usersInDb.Count);
+                orders.Add(new PaymentOrder
+                {
+                    UserId = usersInDb[userIdx].Id,
+                    OrderCode = 100000 + i,
+                    Amount = 20000,
+                    Status = "PAID",
+                    CreatedAt = DateTime.UtcNow.AddDays(-random.Next(0, 7))
+                });
+            }
+            context.PaymentOrders.AddRange(orders);
+            await context.SaveChangesAsync();
+
+            // Seed Processed Images
+            var images = new List<ProcessedImage>();
+            var fileNames = new[] { "avatar.jpg", "portrait_bg.png", "family_photo.jpg", "wedding_dress.png", "business_headshot.jpg" };
+            for (int i = 0; i < 40; i++)
+            {
+                var userIdx = random.Next(usersInDb.Count);
+                var fileIdx = random.Next(fileNames.Length);
+                var daysAgo = random.Next(0, 7);
+                var isLocal = random.NextDouble() < 0.85; // 85% local AI
+                
+                images.Add(new ProcessedImage
+                {
+                    UserId = usersInDb[userIdx].Id,
+                    OriginalFileName = fileNames[fileIdx],
+                    OriginalUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600",
+                    ProcessedUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600",
+                    Source = isLocal ? "Local rembg" : "Cloudinary API",
+                    CreatedAt = DateTime.UtcNow.AddDays(-daysAgo)
+                });
+            }
+            context.ProcessedImages.AddRange(images);
+            await context.SaveChangesAsync();
+
+            // Seed Reviews
+            var comments = new[] 
+            { 
+                "Tách nền cực nhanh và mượt mà, rất thích hợp cho việc làm ảnh profile nhanh.",
+                "Giá nâng cấp 20k quá hời so với việc tự làm photoshop, ủng hộ nhóm phát triển!",
+                "Ghép nền AI bằng prompt tạo được nhiều hình nền nghệ thuật đỉnh thật sự.",
+                "Tốc độ xử lý local AI rất ấn tượng, 0đ API cost giúp tiết kiệm được nhiều tiền.",
+                "Hy vọng app cập nhật thêm nhiều phông nền studio có sẵn đẹp hơn nữa."
+            };
+            
+            var reviews = new List<Review>();
+            for (int i = 0; i < comments.Length; i++)
+            {
+                var userIdx = Math.Min(i, usersInDb.Count - 1);
+                reviews.Add(new Review
+                {
+                    UserId = usersInDb[userIdx].Id,
+                    Rating = random.Next(4, 6), // 4-5 stars
+                    Comment = comments[i],
+                    CreatedAt = DateTime.UtcNow.AddDays(-random.Next(1, 5))
+                });
+            }
+            context.Reviews.AddRange(reviews);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine("[Database] Hoàn tất gieo mầm dữ liệu mẫu thành công.");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"[Database] Lỗi khi tạo database: {ex.Message}");
+        Console.WriteLine($"[Database] Lỗi khi tạo database hoặc seeding: {ex.Message}");
     }
 }
 
