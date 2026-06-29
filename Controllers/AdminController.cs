@@ -116,6 +116,7 @@ namespace BackgroundRemovalMVP.Controllers
                     Username = r.User?.Username ?? "Anonymous",
                     Rating = r.Rating,
                     Comment = r.Comment,
+                    ImageUrl = r.ImageUrl,
                     CreatedAt = r.CreatedAt
                 }).ToList();
 
@@ -178,6 +179,7 @@ namespace BackgroundRemovalMVP.Controllers
                     Username = r.User != null ? r.User.Username : "Anonymous",
                     Rating = r.Rating,
                     Comment = r.Comment,
+                    ImageUrl = r.ImageUrl,
                     CreatedAt = r.CreatedAt
                 })
                 .ToListAsync();
@@ -256,20 +258,67 @@ namespace BackgroundRemovalMVP.Controllers
         }
 
         [HttpPost("review")]
-        public async Task<IActionResult> PostReview([FromBody] CreateReviewRequest request)
+        public async Task<IActionResult> PostReview([FromForm] int rating, [FromForm] string? comment, Microsoft.AspNetCore.Http.IFormFile? file)
         {
             var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (!int.TryParse(userIdClaim, out int userId))
                 return Unauthorized("Token không hợp lệ.");
 
-            if (request.Rating < 1 || request.Rating > 5)
+            if (rating < 1 || rating > 5)
                 return BadRequest("Đánh giá phải từ 1 đến 5 sao.");
+
+            string imageUrl = string.Empty;
+            if (file != null && file.Length > 0)
+            {
+                var cloudinary = HttpContext.RequestServices.GetService(typeof(CloudinaryDotNet.Cloudinary)) as CloudinaryDotNet.Cloudinary;
+                if (cloudinary != null)
+                {
+                    using (var stream = file.OpenReadStream())
+                    {
+                        var uploadParams = new CloudinaryDotNet.Actions.ImageUploadParams()
+                        {
+                            File = new CloudinaryDotNet.FileDescription(file.FileName, stream),
+                            Folder = "bg-remover-reviews"
+                        };
+                        var result = await cloudinary.UploadAsync(uploadParams);
+                        imageUrl = result.SecureUrl.ToString();
+                    }
+                }
+                else
+                {
+                    var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+                    var webRoot = env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                    var uploadsFolder = Path.Combine(webRoot, "uploads");
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+
+                    var uniqueId = Guid.NewGuid().ToString();
+                    var fileName = $"{uniqueId}_review{Path.GetExtension(file.FileName)}";
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    var scheme = Request.Headers["X-Forwarded-Proto"].ToString();
+                    if (string.IsNullOrEmpty(scheme))
+                    {
+                        scheme = Request.Scheme;
+                    }
+                    var baseUrl = $"{scheme}://{Request.Host}";
+                    imageUrl = $"{baseUrl}/uploads/{fileName}";
+                }
+            }
 
             var review = new Review
             {
                 UserId = userId,
-                Rating = request.Rating,
-                Comment = request.Comment ?? string.Empty,
+                Rating = rating,
+                Comment = comment ?? string.Empty,
+                ImageUrl = imageUrl,
                 CreatedAt = DateTime.UtcNow
             };
 
