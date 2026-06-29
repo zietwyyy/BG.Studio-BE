@@ -143,8 +143,8 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        context.Database.EnsureCreated();
-        Console.WriteLine("[Database] Khởi tạo các bảng thành công.");
+        context.Database.Migrate();
+        Console.WriteLine("[Database] Áp dụng các migrations database thành công.");
 
         // Seeding database
         if (await context.Users.CountAsync() <= 1)
