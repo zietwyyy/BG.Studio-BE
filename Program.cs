@@ -143,6 +143,51 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Tự động đồng bộ hóa bảng migrations history nếu database đã tồn tại (do trước đây dùng EnsureCreated)
+        try
+        {
+            // Kiểm tra bảng Users đã tồn tại chưa
+            await context.Users.AnyAsync();
+
+            // Nếu đã tồn tại, tự động chèn lịch sử migrations cũ để tránh lỗi "table already exists"
+            await context.Database.ExecuteSqlRawAsync(
+                "CREATE TABLE IF NOT EXISTS \"__EFMigrationsHistory\" (" +
+                "\"MigrationId\" TEXT NOT NULL PRIMARY KEY, " +
+                "\"ProductVersion\" TEXT NOT NULL" +
+                ");"
+            );
+
+            if (context.Database.IsNpgsql())
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
+                    "VALUES ('20260527060009_InitialSupabase', '8.0.27') ON CONFLICT DO NOTHING;"
+                );
+                await context.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
+                    "VALUES ('20260527061939_AddEmailAndResetPassword', '8.0.27') ON CONFLICT DO NOTHING;"
+                );
+            }
+            else
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "INSERT OR IGNORE INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
+                    "VALUES ('20260527060009_InitialSupabase', '8.0.27');"
+                );
+                await context.Database.ExecuteSqlRawAsync(
+                    "INSERT OR IGNORE INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
+                    "VALUES ('20260527061939_AddEmailAndResetPassword', '8.0.27');"
+                );
+            }
+            Console.WriteLine("[Database] Khởi tạo bảng lịch sử migrations thành công.");
+        }
+        catch (Exception ex)
+        {
+            // Nếu bảng Users chưa tồn tại, đây là database trống hoàn toàn, chạy migrations như bình thường
+            Console.WriteLine($"[Database Pre-migration info] Bắt đầu khởi tạo database mới hoặc cập nhật migrations. Chi tiết: {ex.Message}");
+        }
+
         context.Database.Migrate();
         Console.WriteLine("[Database] Áp dụng các migrations database thành công.");
 
