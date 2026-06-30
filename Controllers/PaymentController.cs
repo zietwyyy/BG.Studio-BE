@@ -188,6 +188,92 @@ namespace BackgroundRemovalMVP.Controllers
             });
         }
 
+        [HttpPost("verify/{orderCode}")]
+        [Authorize]
+        public async Task<IActionResult> VerifyPayment(long orderCode)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized("Token không hợp lệ.");
+
+            var order = await _context.PaymentOrders
+                .FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.UserId == userId);
+
+            if (order == null)
+                return NotFound("Không tìm thấy đơn hàng.");
+
+            // Nếu đã thanh toán rồi thì trả về thành công luôn
+            if (order.Status == "PAID")
+            {
+                var user = await _context.Users.FindAsync(userId);
+                return Ok(new
+                {
+                    status = "PAID",
+                    isPro = user?.IsPro ?? false,
+                    expiresAt = user?.SubscriptionExpiresAt
+                });
+            }
+
+            // Đọc cấu hình PayOS
+            string? clientId = _configuration["PayOS:ClientId"];
+            string? apiKey = _configuration["PayOS:ApiKey"];
+
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(apiKey))
+            {
+                return BadRequest("Không có cấu hình PayOS thực tế để đối soát.");
+            }
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("x-client-id", clientId);
+                client.DefaultRequestHeaders.Add("x-api-key", apiKey);
+
+                var response = await client.GetAsync($"https://api-merchant.payos.vn/v2/payment-requests/{orderCode}");
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return BadRequest($"Lỗi từ cổng thanh toán PayOS: {responseContent}");
+                }
+
+                using var doc = JsonDocument.Parse(responseContent);
+                var dataElement = doc.RootElement.GetProperty("data");
+                string status = dataElement.GetProperty("status").GetString() ?? "";
+
+                if (status == "PAID")
+                {
+                    order.Status = "PAID";
+
+                    var user = await _context.Users.FindAsync(userId);
+                    if (user != null)
+                    {
+                        user.IsPro = true;
+                        user.SubscriptionExpiresAt = DateTime.UtcNow.AddMonths(1);
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    return Ok(new
+                    {
+                        status = "PAID",
+                        isPro = true,
+                        expiresAt = user?.SubscriptionExpiresAt
+                    });
+                }
+
+                return Ok(new
+                {
+                    status = status,
+                    isPro = false
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi hệ thống khi xác thực thanh toán: {ex.Message}");
+            }
+        }
+
         [HttpPost("webhook")]
         public async Task<IActionResult> PayOSWebhook([FromBody] JsonElement payload)
         {
