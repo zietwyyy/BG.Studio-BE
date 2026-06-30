@@ -25,6 +25,29 @@ namespace BackgroundRemovalMVP.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
+        [HttpGet("history")]
+        [Authorize]
+        public async Task<IActionResult> GetTransactionHistory()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized("Token không hợp lệ.");
+
+            var orders = await _context.PaymentOrders
+                .Where(o => o.UserId == userId)
+                .OrderByDescending(o => o.CreatedAt)
+                .Select(o => new
+                {
+                    o.OrderCode,
+                    o.Amount,
+                    o.Status,
+                    o.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(orders);
+        }
+
         [HttpPost("create")]
         [Authorize]
         public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentRequest? request)
