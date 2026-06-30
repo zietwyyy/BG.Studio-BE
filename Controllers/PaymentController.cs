@@ -60,7 +60,7 @@ namespace BackgroundRemovalMVP.Controllers
             long orderCode = DateTime.UtcNow.Ticks % 1000000000;
             if (orderCode < 0) orderCode = -orderCode;
 
-            int amount = 20000; // 20k VND
+            int amount = 49000; // 49k VND
 
             // Lưu đơn hàng PENDING vào database
             var order = new PaymentOrder
