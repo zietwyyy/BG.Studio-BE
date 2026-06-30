@@ -49,7 +49,7 @@ namespace BackgroundRemovalMVP.Controllers
 
             // Kiểm tra trạng thái Pro
             bool isPro = user.IsPro && user.SubscriptionExpiresAt.HasValue && user.SubscriptionExpiresAt.Value > DateTime.UtcNow;
-            int dailyLimit = isPro ? 30 : 10;
+            int dailyLimit = isPro ? 10 : 5;
 
             // Đếm số ảnh đã xử lý hôm nay (theo giờ UTC)
             var today = DateTime.UtcNow.Date;
@@ -59,7 +59,7 @@ namespace BackgroundRemovalMVP.Controllers
             if (todayCount >= dailyLimit)
             {
                 return StatusCode(402, new { 
-                    message = $"Bạn đã dùng hết giới hạn ảnh trong ngày ({todayCount}/{dailyLimit} ảnh). Hãy nâng cấp lên tài khoản Pro (49k/tháng) để có 30 lượt dùng/ngày!",
+                    message = $"Bạn đã dùng hết giới hạn ảnh trong ngày ({todayCount}/{dailyLimit} ảnh). Hãy nâng cấp lên tài khoản Pro (49k/tháng) để có 10 lượt dùng/ngày (300 lượt/tháng)!",
                     limitReached = true,
                     currentUsage = todayCount,
                     limit = dailyLimit
@@ -239,7 +239,7 @@ namespace BackgroundRemovalMVP.Controllers
 
             // Kiểm tra trạng thái Pro
             bool isPro = user.IsPro && user.SubscriptionExpiresAt.HasValue && user.SubscriptionExpiresAt.Value > DateTime.UtcNow;
-            int dailyLimit = isPro ? 30 : 10;
+            int dailyLimit = isPro ? 10 : 5;
 
             // Đếm số ảnh đã xử lý hôm nay (theo giờ UTC)
             var today = DateTime.UtcNow.Date;
@@ -249,7 +249,7 @@ namespace BackgroundRemovalMVP.Controllers
             if (todayCount >= dailyLimit)
             {
                 return StatusCode(402, new { 
-                    message = $"Bạn đã dùng hết giới hạn ảnh trong ngày ({todayCount}/{dailyLimit} ảnh). Hãy nâng cấp lên tài khoản Pro (49k/tháng) để có 30 lượt dùng/ngày!",
+                    message = $"Bạn đã dùng hết giới hạn ảnh trong ngày ({todayCount}/{dailyLimit} ảnh). Hãy nâng cấp lên tài khoản Pro (49k/tháng) để có 10 lượt dùng/ngày (300 lượt/tháng)!",
                     limitReached = true,
                     currentUsage = todayCount,
                     limit = dailyLimit
