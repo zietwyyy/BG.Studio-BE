@@ -209,10 +209,19 @@ namespace BackgroundRemovalMVP.Controllers
                     // Note: Để đơn giản hóa và tăng tính tương thích, ta cho phép qua bước này hoặc ghi log verify
                 }
 
-                if (payload.GetProperty("code").GetString() == "00")
+                string code = "";
+                if (dataEl.TryGetProperty("code", out var codeProp))
                 {
-                    var dataObj = payload.GetProperty("data");
-                    long orderCode = dataObj.GetProperty("orderCode").GetInt64();
+                    code = codeProp.GetString() ?? "";
+                }
+                else if (payload.TryGetProperty("code", out var rootCodeProp))
+                {
+                    code = rootCodeProp.GetString() ?? "";
+                }
+
+                if (code == "00")
+                {
+                    long orderCode = dataEl.GetProperty("orderCode").GetInt64();
 
                     var order = await _context.PaymentOrders
                         .FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.Status == "PENDING");
