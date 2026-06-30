@@ -99,9 +99,18 @@ namespace BackgroundRemovalMVP.Controllers
                 {
                     cancelUrl = $"{baseUrl}/index.html?payment=cancel&order={orderCode}";
                 }
+                else
+                {
+                    cancelUrl = cancelUrl.Contains("?") ? $"{cancelUrl}&order={orderCode}" : $"{cancelUrl}?order={orderCode}";
+                }
+
                 if (string.IsNullOrEmpty(returnUrl))
                 {
                     returnUrl = $"{baseUrl}/index.html?payment=success&order={orderCode}";
+                }
+                else
+                {
+                    returnUrl = returnUrl.Contains("?") ? $"{returnUrl}&order={orderCode}" : $"{returnUrl}?order={orderCode}";
                 }
 
                 var description = $"FACEIN PRO {orderCode}";
